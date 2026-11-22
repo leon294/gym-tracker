@@ -7,7 +7,8 @@
   --label: #000000;
   --label-2: rgb(60 60 67 / 0.75); /* iOS uses 0.6 (~3.4:1); 0.75 reaches ~5.2:1 on white */
   --separator: rgb(60 60 67 / 0.29);
-  --accent: #007aff;      /* systemBlue */
+  --accent: #0066d6;      /* darker than systemBlue #007aff (4.0:1) to reach 5.4:1 on white */
+  --red: #d70015;         /* iOS accessible red; #ff3b30 is only 3.6:1 */
   --bar: rgb(249 249 249 / 0.8);
 }
 @media (prefers-color-scheme: dark) {
@@ -18,6 +19,7 @@
     --label-2: rgb(235 235 245 / 0.6);
     --separator: rgb(84 84 88 / 0.65);
     --accent: #0a84ff;
+    --red: #ff453a;
     --bar: rgb(22 22 22 / 0.8);
   }
 }
@@ -32,6 +34,7 @@
   --color-label-2: var(--label-2);
   --color-separator: var(--separator);
   --color-accent: var(--accent);
+  --color-red: var(--red);
   --color-bar: var(--bar);
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
 }

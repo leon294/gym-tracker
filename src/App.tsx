@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import Exercises from './Exercises'
 
 type TabId = 'training' | 'auswertung' | 'uebungen' | 'einstellungen'
 
@@ -21,7 +22,7 @@ const icons: Record<TabId, ReactNode> = {
 const tabs: { id: TabId; label: string; empty: string }[] = [
   { id: 'training', label: 'Training', empty: 'Noch kein Training gestartet.' },
   { id: 'auswertung', label: 'Auswertung', empty: 'Noch keine Trainings in dieser Woche.' },
-  { id: 'uebungen', label: 'Übungen', empty: 'Noch keine Übungen angelegt.' },
+  { id: 'uebungen', label: 'Übungen', empty: '' },
   { id: 'einstellungen', label: 'Einstellungen', empty: 'Export und Import folgen.' },
 ]
 
@@ -48,8 +49,14 @@ export default function App() {
         className="flex-1 overflow-y-auto px-4 pb-[calc(49px+env(safe-area-inset-bottom)+16px)]"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}
       >
-        <h1 className="mt-2 mb-4 text-[34px] leading-[41px] font-bold tracking-tight">{current.label}</h1>
-        <section className="rounded-xl bg-card px-4 py-6 text-center text-label-2">{current.empty}</section>
+        {tab === 'uebungen' ? (
+          <Exercises />
+        ) : (
+          <>
+            <h1 className="mt-2 mb-4 text-[34px] leading-[41px] font-bold tracking-tight">{current.label}</h1>
+            <section className="rounded-xl bg-card px-4 py-6 text-center text-label-2">{current.empty}</section>
+          </>
+        )}
       </main>
 
       <nav

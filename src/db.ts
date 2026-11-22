@@ -1,4 +1,5 @@
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { liveQuery, type EntityTable } from 'dexie'
+import { useEffect, useState, type DependencyList } from 'react'
 import type { Exercise, Workout } from './types'
 
 export const db = new Dexie('gym-tracker') as Dexie & {
@@ -16,3 +17,13 @@ navigator.storage?.persist?.()
 
 export const newId = () => crypto.randomUUID()
 export const nowIso = () => new Date().toISOString()
+
+/** Re-renders whenever the queried tables change. undefined while loading. */
+export function useLive<T>(query: () => Promise<T>, deps: DependencyList = []): T | undefined {
+  const [value, setValue] = useState<T>()
+  useEffect(() => {
+    const sub = liveQuery(query).subscribe({ next: setValue, error: console.error })
+    return () => sub.unsubscribe()
+  }, deps)
+  return value
+}
