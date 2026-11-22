@@ -15,6 +15,7 @@ export const MUSCLES = [
   { id: 'seitlicher-bauch', label: 'Seitlicher Bauch' },
   { id: 'quadrizeps', label: 'Quadrizeps' },
   { id: 'beinbeuger', label: 'Beinbeuger' },
+  { id: 'sartorius', label: 'Sartorius' },
   { id: 'gesaess', label: 'Gesäß' },
   { id: 'adduktoren', label: 'Adduktoren' },
   { id: 'abduktoren', label: 'Abduktoren' },
