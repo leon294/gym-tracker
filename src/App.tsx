@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Auswertung from './Auswertung'
 import Exercises from './Exercises'
+import Settings from './Settings'
 import Training from './Training'
 
 type TabId = 'training' | 'auswertung' | 'uebungen' | 'einstellungen'
@@ -21,11 +22,11 @@ const icons: Record<TabId, ReactNode> = {
   ),
 }
 
-const tabs: { id: TabId; label: string; empty: string }[] = [
-  { id: 'training', label: 'Training', empty: '' },
-  { id: 'auswertung', label: 'Auswertung', empty: '' },
-  { id: 'uebungen', label: 'Übungen', empty: '' },
-  { id: 'einstellungen', label: 'Einstellungen', empty: 'Export und Import folgen.' },
+const tabs: { id: TabId; label: string }[] = [
+  { id: 'training', label: 'Training' },
+  { id: 'auswertung', label: 'Auswertung' },
+  { id: 'uebungen', label: 'Übungen' },
+  { id: 'einstellungen', label: 'Einstellungen' },
 ]
 
 const fromHash = (): TabId => {
@@ -35,6 +36,22 @@ const fromHash = (): TabId => {
 
 export default function App() {
   const [tab, setTab] = useState<TabId>(fromHash)
+  const [error, setError] = useState<string | null>(null)
+
+  // Writes are fire-and-forget, so a failing IndexedDB (full, private mode) surfaces here instead of silently
+  useEffect(() => {
+    const onError = (e: ErrorEvent | PromiseRejectionEvent) => {
+      const err = 'reason' in e ? e.reason : e.error
+      const text = String(err?.message ?? err ?? 'Unbekannter Fehler')
+      if (!text.includes('ResizeObserver')) setError(text) // harmless browser noise from charts
+    }
+    addEventListener('error', onError)
+    addEventListener('unhandledrejection', onError)
+    return () => {
+      removeEventListener('error', onError)
+      removeEventListener('unhandledrejection', onError)
+    }
+  }, [])
 
   // Hash keeps the tab across reloads and enables browser back
   useEffect(() => {
@@ -42,8 +59,6 @@ export default function App() {
     addEventListener('hashchange', onHash)
     return () => removeEventListener('hashchange', onHash)
   }, [])
-
-  const current = tabs.find((t) => t.id === tab)!
 
   return (
     <div className="flex h-full flex-col">
@@ -58,12 +73,25 @@ export default function App() {
         ) : tab === 'auswertung' ? (
           <Auswertung />
         ) : (
-          <>
-            <h1 className="mt-2 mb-4 text-[34px] leading-[41px] font-bold tracking-tight">{current.label}</h1>
-            <section className="rounded-xl bg-card px-4 py-6 text-center text-label-2">{current.empty}</section>
-          </>
+          <Settings />
         )}
       </main>
+
+      {error && (
+        <div
+          role="alert"
+          className="fixed inset-x-4 z-50 mx-auto flex max-w-lg items-start gap-3 rounded-xl bg-card p-4 shadow-lg ring-1 ring-separator"
+          style={{ top: 'max(env(safe-area-inset-top), 12px)' }}
+        >
+          <p className="flex-1 text-[15px]">
+            <span className="font-semibold text-red">Fehler beim Speichern oder Laden.</span> Die letzte Änderung wurde eventuell nicht
+            gespeichert. ({error})
+          </p>
+          <button onClick={() => setError(null)} className="min-h-11 px-1 font-semibold text-accent">
+            OK
+          </button>
+        </div>
+      )}
 
       <nav
         aria-label="Hauptnavigation"

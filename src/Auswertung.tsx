@@ -8,6 +8,7 @@ import {
   formatTotal,
   formatWeek,
   muscleSets,
+  plural,
   weekStart,
   weekSummary,
   workingSets,
@@ -184,7 +185,7 @@ function WorkoutList({ workouts, onOpen }: { workouts: Workout[]; onOpen: (id: s
                 {formatDate(w.startedAt)}, {formatTime(w.startedAt)} Uhr
               </span>
               <span className="block truncate text-[15px] text-label-2">
-                {formatDuration(w.durationSec ?? 0)} · {countSets(w)} Sätze
+                {formatDuration(w.durationSec ?? 0)} · {plural(countSets(w), 'Satz', 'Sätze')}
                 {w.exercises.length > 0 && ` · ${w.exercises.map((x) => x.name).join(', ')}`}
               </span>
             </span>

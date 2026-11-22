@@ -22,7 +22,7 @@ export const nowIso = () => new Date().toISOString()
 export function useLive<T>(query: () => Promise<T>, deps: DependencyList = []): T | undefined {
   const [value, setValue] = useState<T>()
   useEffect(() => {
-    const sub = liveQuery(query).subscribe({ next: setValue, error: console.error })
+    const sub = liveQuery(query).subscribe({ next: setValue, error: reportError }) // shows the error banner
     return () => sub.unsubscribe()
   }, deps)
   return value

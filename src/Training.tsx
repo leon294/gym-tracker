@@ -7,6 +7,7 @@ import {
   formatTime,
   lastTime,
   muscleSets,
+  plural,
   prefill,
   workingSets,
   type LastTime,
@@ -66,6 +67,7 @@ type Modal =
   | { kind: 'set'; ex: number; set?: SetEntry }
   | { kind: 'history'; ex: number }
   | { kind: 'end' }
+  | { kind: 'time' }
 
 /** Running workout (timer + Beenden), or a finished one being edited (onDone given). */
 export function WorkoutEditor({
@@ -133,9 +135,9 @@ export function WorkoutEditor({
       {onDone ? (
         <header className="mt-2 mb-4 flex items-end justify-between">
           <div>
-            <p className="text-[15px] text-label-2">
-              {formatTime(w.startedAt)} Uhr · {formatDuration(w.durationSec ?? 0)}
-            </p>
+            <button onClick={() => setModal({ kind: 'time' })} className="-my-2 min-h-11 text-[15px] text-accent">
+              {formatTime(w.startedAt)} Uhr · {formatDuration(w.durationSec ?? 0)} · Zeit ändern
+            </button>
             <h1 className={title}>{formatDate(w.startedAt)}</h1>
           </div>
           <button onClick={onDone} className="min-h-11 px-1 font-semibold text-accent">
@@ -167,6 +169,9 @@ export function WorkoutEditor({
       )}
 
       <div className="space-y-4">
+        {w.exercises.length === 0 && (
+          <p className="rounded-xl bg-card px-4 py-6 text-center text-label-2">Noch keine Übung. Füge unten die erste hinzu.</p>
+        )}
         {w.exercises.map((x, i) => {
           const l = last(x)
           let n = 0
@@ -248,6 +253,7 @@ export function WorkoutEditor({
         </Sheet>
       )}
       {modal?.kind === 'end' && <EndSheet w={w} onClose={close} />}
+      {modal?.kind === 'time' && <TimeSheet w={w} onClose={close} />}
     </>
   )
 }
@@ -257,7 +263,7 @@ function LastLine({ last }: { last?: LastTime }) {
   const sets = workingSets(last.sets)
   return (
     <p className="mt-1 text-[15px] text-label-2">
-      Zuletzt {formatDate(last.startedAt)}: {sets.length} {sets.length === 1 ? 'Satz' : 'Sätze'}
+      Zuletzt {formatDate(last.startedAt)}: {plural(sets.length, 'Satz', 'Sätze')}
       {sets.length > 0 && ` · ${sets.map(setText).join(', ')}`}
     </p>
   )
@@ -437,6 +443,61 @@ function EndSheet({ w, onClose }: { w: Workout; onClose: () => void }) {
       <button onClick={discard} className="min-h-11 w-full text-red">
         Training verwerfen
       </button>
+    </Sheet>
+  )
+}
+
+/** "2026-11-20T18:15" in local time, the value format of <input type="datetime-local"> */
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+}
+
+function TimeSheet({ w, onClose }: { w: Workout; onClose: () => void }) {
+  const d = w.durationSec ?? 0
+  const [start, setStart] = useState(toLocalInput(w.startedAt))
+  const [h, setH] = useState(String(Math.floor(d / 3600)))
+  const [m, setM] = useState(String(Math.floor((d % 3600) / 60)))
+  const [tried, setTried] = useState(false)
+
+  const t = Date.parse(start) // no offset in the string = local time
+  const durationSec = Number(h) * 3600 + Number(m) * 60
+  const error = Number.isNaN(t)
+    ? 'Bitte Datum und Uhrzeit angeben.'
+    : !Number.isInteger(durationSec) || durationSec <= 0 || durationSec > 24 * 3600 || Number(m) > 59
+      ? 'Bitte eine Dauer zwischen 1 Minute und 24 Stunden angeben.'
+      : null
+
+  function save() {
+    setTried(true)
+    if (error) return
+    saveWorkout({ ...w, startedAt: new Date(t).toISOString(), durationSec, endedAt: new Date(t + durationSec * 1000).toISOString() })
+    onClose()
+  }
+
+  const field = 'h-11 w-full rounded-xl bg-card px-4 outline-none focus-visible:ring-2 focus-visible:ring-accent'
+  return (
+    <Sheet title="Zeit ändern" onClose={onClose} action={{ label: 'Sichern', onClick: save }}>
+      <label className="block">
+        <span className={`block ${caption}`}>Start</span>
+        <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} className={field} />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className={`block ${caption}`}>Stunden</span>
+          <input type="number" inputMode="numeric" min={0} max={24} value={h} onChange={(e) => setH(e.target.value)} className={field} />
+        </label>
+        <label className="block">
+          <span className={`block ${caption}`}>Minuten</span>
+          <input type="number" inputMode="numeric" min={0} max={59} value={m} onChange={(e) => setM(e.target.value)} className={field} />
+        </label>
+      </div>
+      <p className="px-4 text-[13px] text-label-2">Das Ende wird aus Start und Dauer berechnet.</p>
+      {tried && error && (
+        <p role="alert" className="px-4 text-[15px] text-red">
+          {error}
+        </p>
+      )}
     </Sheet>
   )
 }

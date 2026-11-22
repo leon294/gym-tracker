@@ -109,6 +109,9 @@ export function exerciseHistory(workouts: Workout[], exerciseId: string): Histor
     .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
 }
 
+/** 1 → "1 Satz", 3 → "3 Sätze" */
+export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
 const pad = (n: number) => String(n).padStart(2, '0')
 /** 75 → "1:15", 3725 → "1:02:05" */
 export function formatDuration(sec: number) {
