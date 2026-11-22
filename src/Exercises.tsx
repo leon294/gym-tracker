@@ -169,13 +169,13 @@ function Editor({ exercise, all, onClose }: { exercise: Exercise | null; all: Ex
                     </option>
                   ))}
                 </select>
-                <div role="group" aria-label="Gewichtung" className="flex shrink-0 rounded-lg bg-bg p-0.5">
+                <div role="group" aria-label="Gewichtung" className="flex shrink-0 rounded-lg bg-fill p-0.5">
                   {([1, 0.5] as const).map((w) => (
                     <button
                       key={w}
                       onClick={() => setRow(i, { weight: w })}
                       aria-pressed={m.weight === w}
-                      className={`h-9 w-12 rounded-md text-[15px] font-medium ${m.weight === w ? 'bg-card shadow-sm' : 'text-label-2'}`}
+                      className={`h-9 w-12 rounded-md text-[15px] font-medium ${m.weight === w ? 'bg-seg shadow-sm' : 'text-label-2'}`}
                     >
                       {formatDe(w)}
                     </button>

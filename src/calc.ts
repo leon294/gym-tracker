@@ -64,11 +64,11 @@ export interface LastTime {
   sets: SetEntry[]
 }
 
-/** Most recent workout (other than excludeId) with sets for this exercise. */
-export function lastTime(workouts: Workout[], exerciseId: string, excludeId?: string): LastTime | undefined {
+/** Most recent workout started before `before` (ISO; default: any) with sets for this exercise. */
+export function lastTime(workouts: Workout[], exerciseId: string, before?: string): LastTime | undefined {
   let best: LastTime | undefined
   for (const w of workouts) {
-    if (w.id === excludeId) continue
+    if (before && w.startedAt >= before) continue
     const sets = w.exercises.filter((e) => e.exerciseId === exerciseId).flatMap((e) => e.sets)
     if (sets.length && (!best || w.startedAt > best.startedAt)) best = { startedAt: w.startedAt, sets }
   }
@@ -124,3 +124,15 @@ const timeFmt = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-d
 export const formatDate = (iso: string) => dateFmt.format(new Date(iso))
 /** "18:05" */
 export const formatTime = (iso: string) => timeFmt.format(new Date(iso))
+
+const rangeFmt = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'short' })
+/** Monday..Sunday label: "23.–29. Nov." or "30. Nov. – 6. Dez." */
+export const formatWeek = (start: Date) =>
+  rangeFmt.formatRange(start, new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6))
+
+/** Total training time: 0 → "0 min", 8100 → "2 h 15 min" */
+export function formatTotal(sec: number) {
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  return h ? `${h} h ${m} min` : `${m} min`
+}

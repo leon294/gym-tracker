@@ -18,13 +18,13 @@ export default function HistoryChart({ points }: { points: HistoryPoint[] }) {
 
   return (
     <>
-      <div role="group" aria-label="Kennzahl" className="flex rounded-lg bg-card p-0.5">
+      <div role="group" aria-label="Kennzahl" className="flex rounded-lg bg-fill p-0.5">
         {MODES.map((m) => (
           <button
             key={m.id}
             onClick={() => setModeId(m.id)}
             aria-pressed={m.id === modeId}
-            className={`h-9 flex-1 rounded-md text-[15px] font-medium ${m.id === modeId ? 'bg-bg shadow-sm' : 'text-label-2'}`}
+            className={`h-9 flex-1 rounded-md text-[15px] font-medium ${m.id === modeId ? 'bg-seg shadow-sm' : 'text-label-2'}`}
           >
             {m.short}
           </button>

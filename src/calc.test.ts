@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addWeeks, e1rm, exerciseHistory, formatDate, formatDe, formatDuration, lastTime, muscleSets, prefill, weekStart, weekSummary } from './calc'
+import { addWeeks, e1rm, exerciseHistory, formatDate, formatDe, formatDuration, formatTotal, formatWeek, lastTime, muscleSets, prefill, weekStart, weekSummary } from './calc'
 import type { Workout, WorkoutExercise } from './types'
 
 const pullups = (sets: number, warmups = 0): WorkoutExercise => ({
@@ -100,8 +100,8 @@ describe('lastTime / prefill', () => {
   const b = workout(new Date(2026, 10, 23, 18), [curls(1)])
   const c = workout(new Date(2026, 10, 25, 18), [pullups(3)])
 
-  it('finds the most recent other workout with this exercise', () => {
-    expect(lastTime([a, b, c], 'pullups', c.id)?.startedAt).toBe(a.startedAt)
+  it('finds the most recent earlier workout with this exercise', () => {
+    expect(lastTime([a, b, c], 'pullups', c.startedAt)?.startedAt).toBe(a.startedAt)
     expect(lastTime([a, b, c], 'pullups')?.startedAt).toBe(c.startedAt)
     expect(lastTime([b], 'pullups')).toBeUndefined()
   })
@@ -139,5 +139,17 @@ describe('formatDuration / formatDate', () => {
   })
   it('German short date', () => {
     expect(formatDate(new Date(2026, 10, 23, 18).toISOString())).toBe('Mo., 23. Nov.')
+  })
+})
+
+describe('formatWeek / formatTotal', () => {
+  it('week range within and across months', () => {
+    expect(formatWeek(new Date(2026, 10, 23))).toMatch(/^23\.\s?–\s?29\. Nov\.$/)
+    expect(formatWeek(new Date(2026, 10, 30))).toMatch(/^30\. Nov\.\s?–\s?6\. Dez\.$/)
+  })
+  it('total duration', () => {
+    expect(formatTotal(0)).toBe('0 min')
+    expect(formatTotal(2700)).toBe('45 min')
+    expect(formatTotal(8100)).toBe('2 h 15 min')
   })
 })

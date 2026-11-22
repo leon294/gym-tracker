@@ -10,6 +10,8 @@
   --accent: #0066d6;      /* darker than systemBlue #007aff (4.0:1) to reach 5.4:1 on white */
   --red: #d70015;         /* iOS accessible red; #ff3b30 is only 3.6:1 */
   --bar: rgb(249 249 249 / 0.8);
+  --fill: rgb(118 118 128 / 0.12); /* segmented track */
+  --seg: #ffffff;                  /* selected segment */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -21,6 +23,8 @@
     --accent: #0a84ff;
     --red: #ff453a;
     --bar: rgb(22 22 22 / 0.8);
+    --fill: rgb(118 118 128 / 0.24);
+    --seg: #636366;
   }
 }
 @media (prefers-reduced-transparency: reduce) {
@@ -36,6 +40,8 @@
   --color-accent: var(--accent);
   --color-red: var(--red);
   --color-bar: var(--bar);
+  --color-fill: var(--fill);
+  --color-seg: var(--seg);
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
 }
 

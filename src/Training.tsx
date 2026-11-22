@@ -21,10 +21,10 @@ import WeightWheel from './WeightWheel'
 // Recharts is large; load it only when a history sheet opens (still precached for offline)
 const HistoryChart = lazy(() => import('./HistoryChart'))
 
-const title = 'text-[34px] leading-[41px] font-bold tracking-tight'
-const primary = 'h-14 w-full rounded-2xl bg-accent text-[17px] font-semibold text-white active:opacity-70'
-const caption = 'mb-1.5 px-4 text-[13px] text-label-2 uppercase'
-const setText = (s: SetEntry) => `${formatDe(s.weightKg)} kg × ${s.reps}`
+export const title = 'text-[34px] leading-[41px] font-bold tracking-tight'
+export const primary = 'h-14 w-full rounded-2xl bg-accent text-[17px] font-semibold text-white active:opacity-70'
+export const caption = 'mb-1.5 px-4 text-[13px] text-label-2 uppercase'
+export const setText = (s: SetEntry) => `${formatDe(s.weightKg)} kg × ${s.reps}`
 
 const saveWorkout = (w: Workout) => db.workouts.put({ ...w, updatedAt: nowIso() })
 
@@ -35,7 +35,7 @@ export default function Training() {
 
   const running = workouts.filter((w) => !w.endedAt).sort((a, b) => a.startedAt.localeCompare(b.startedAt)).at(-1)
   return running ? (
-    <Running w={running} workouts={workouts} exercises={exercises} />
+    <WorkoutEditor w={running} workouts={workouts} exercises={exercises} />
   ) : (
     <Idle last={workouts.reduce<Workout | undefined>((a, w) => (!a || w.startedAt > a.startedAt ? w : a), undefined)} />
   )
@@ -67,7 +67,18 @@ type Modal =
   | { kind: 'history'; ex: number }
   | { kind: 'end' }
 
-function Running({ w, workouts, exercises }: { w: Workout; workouts: Workout[]; exercises: Exercise[] }) {
+/** Running workout (timer + Beenden), or a finished one being edited (onDone given). */
+export function WorkoutEditor({
+  w,
+  workouts,
+  exercises,
+  onDone,
+}: {
+  w: Workout
+  workouts: Workout[]
+  exercises: Exercise[]
+  onDone?: () => void
+}) {
   const [now, setNow] = useState(Date.now())
   const [modal, setModal] = useState<Modal | null>(null)
   const close = () => setModal(null)
@@ -82,7 +93,7 @@ function Running({ w, workouts, exercises }: { w: Workout; workouts: Workout[]; 
   const setExercises = (list: WorkoutExercise[]) => saveWorkout({ ...w, exercises: list })
   const updateEx = (i: number, f: (x: WorkoutExercise) => WorkoutExercise) =>
     setExercises(w.exercises.map((x, j) => (j === i ? f(x) : x)))
-  const last = (x: WorkoutExercise) => lastTime(workouts, x.exerciseId, w.id)
+  const last = (x: WorkoutExercise) => lastTime(workouts, x.exerciseId, w.startedAt)
   const sums = Object.entries(muscleSets([w])).sort((a, b) => b[1] - a[1])
 
   function pick(e: Exercise) {
@@ -119,17 +130,31 @@ function Running({ w, workouts, exercises }: { w: Workout; workouts: Workout[]; 
 
   return (
     <>
-      <header className="mt-2 mb-4 flex items-end justify-between">
-        <div>
-          <p className="text-[15px] text-label-2">Training seit {formatTime(w.startedAt)} Uhr</p>
-          <p className={`${title} tabular-nums`} role="timer" aria-label="Trainingsdauer">
-            {formatDuration(elapsed)}
-          </p>
-        </div>
-        <button onClick={() => setModal({ kind: 'end' })} className="min-h-11 px-1 font-semibold text-accent">
-          Beenden
-        </button>
-      </header>
+      {onDone ? (
+        <header className="mt-2 mb-4 flex items-end justify-between">
+          <div>
+            <p className="text-[15px] text-label-2">
+              {formatTime(w.startedAt)} Uhr · {formatDuration(w.durationSec ?? 0)}
+            </p>
+            <h1 className={title}>{formatDate(w.startedAt)}</h1>
+          </div>
+          <button onClick={onDone} className="min-h-11 px-1 font-semibold text-accent">
+            Fertig
+          </button>
+        </header>
+      ) : (
+        <header className="mt-2 mb-4 flex items-end justify-between">
+          <div>
+            <p className="text-[15px] text-label-2">Training seit {formatTime(w.startedAt)} Uhr</p>
+            <p className={`${title} tabular-nums`} role="timer" aria-label="Trainingsdauer">
+              {formatDuration(elapsed)}
+            </p>
+          </div>
+          <button onClick={() => setModal({ kind: 'end' })} className="min-h-11 px-1 font-semibold text-accent">
+            Beenden
+          </button>
+        </header>
+      )}
 
       {sums.length > 0 && (
         <section aria-label="Sätze pro Muskelgruppe" className="mb-4 flex flex-wrap gap-2">
