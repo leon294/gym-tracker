@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addWeeks, formatSets, muscleSets, weekStart, weekSummary } from './calc'
+import { addWeeks, e1rm, exerciseHistory, formatDate, formatDe, formatDuration, lastTime, muscleSets, prefill, weekStart, weekSummary } from './calc'
 import type { Workout, WorkoutExercise } from './types'
 
 const pullups = (sets: number, warmups = 0): WorkoutExercise => ({
@@ -47,6 +47,7 @@ describe('muscleSets', () => {
 
   it('empty input gives empty result', () => {
     expect(muscleSets([])).toEqual({})
+    expect(muscleSets([workout(new Date(), [pullups(0, 2)])])).toEqual({})
   })
 })
 
@@ -86,10 +87,57 @@ describe('weekSummary', () => {
   })
 })
 
-describe('formatSets', () => {
+describe('formatDe', () => {
   it('German decimal comma, max one digit', () => {
-    expect(formatSets(1.5)).toBe('1,5')
-    expect(formatSets(3)).toBe('3')
-    expect(formatSets(0)).toBe('0')
+    expect(formatDe(1.5)).toBe('1,5')
+    expect(formatDe(3)).toBe('3')
+    expect(formatDe(0)).toBe('0')
+  })
+})
+
+describe('lastTime / prefill', () => {
+  const a = workout(new Date(2026, 10, 20, 18), [pullups(2, 1)])
+  const b = workout(new Date(2026, 10, 23, 18), [curls(1)])
+  const c = workout(new Date(2026, 10, 25, 18), [pullups(3)])
+
+  it('finds the most recent other workout with this exercise', () => {
+    expect(lastTime([a, b, c], 'pullups', c.id)?.startedAt).toBe(a.startedAt)
+    expect(lastTime([a, b, c], 'pullups')?.startedAt).toBe(c.startedAt)
+    expect(lastTime([b], 'pullups')).toBeUndefined()
+  })
+
+  it('prefill: last set today wins, else first working set of last time, else default', () => {
+    const today = [{ id: 'x', reps: 5, weightKg: 42.5 }]
+    expect(prefill(today, lastTime([a], 'pullups'))).toEqual({ weightKg: 42.5, reps: 5 })
+    expect(prefill([], lastTime([a], 'pullups'))).toEqual({ weightKg: 10, reps: 8 }) // skips warm-up
+    expect(prefill([], undefined)).toEqual({ weightKg: 20, reps: 10 })
+  })
+})
+
+describe('exerciseHistory', () => {
+  it('one point per workout, oldest first, warm-ups ignored', () => {
+    const w1 = workout(new Date(2026, 10, 25), [
+      { ...curls(0), sets: [{ id: '1', reps: 10, weightKg: 20 }, { id: '2', reps: 5, weightKg: 25 }, { id: '3', reps: 1, weightKg: 40, warmup: true }] },
+    ])
+    const w0 = workout(new Date(2026, 10, 20), [curls(1)])
+    expect(exerciseHistory([w1, w0], 'curls')).toEqual([
+      { startedAt: w0.startedAt, weight: 12.5, e1rm: 17.5, volume: 150 },
+      { startedAt: w1.startedAt, weight: 25, e1rm: 29.2, volume: 325 },
+    ])
+  })
+  it('e1rm: single rep equals weight', () => {
+    expect(e1rm(100, 1)).toBe(100)
+    expect(e1rm(100, 0)).toBe(100)
+  })
+})
+
+describe('formatDuration / formatDate', () => {
+  it('formats durations', () => {
+    expect(formatDuration(0)).toBe('0:00')
+    expect(formatDuration(75)).toBe('1:15')
+    expect(formatDuration(3725.9)).toBe('1:02:05')
+  })
+  it('German short date', () => {
+    expect(formatDate(new Date(2026, 10, 23, 18).toISOString())).toBe('Mo., 23. Nov.')
   })
 })

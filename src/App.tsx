@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Exercises from './Exercises'
+import Training from './Training'
 
 type TabId = 'training' | 'auswertung' | 'uebungen' | 'einstellungen'
 
@@ -20,7 +21,7 @@ const icons: Record<TabId, ReactNode> = {
 }
 
 const tabs: { id: TabId; label: string; empty: string }[] = [
-  { id: 'training', label: 'Training', empty: 'Noch kein Training gestartet.' },
+  { id: 'training', label: 'Training', empty: '' },
   { id: 'auswertung', label: 'Auswertung', empty: 'Noch keine Trainings in dieser Woche.' },
   { id: 'uebungen', label: 'Übungen', empty: '' },
   { id: 'einstellungen', label: 'Einstellungen', empty: 'Export und Import folgen.' },
@@ -51,6 +52,8 @@ export default function App() {
       >
         {tab === 'uebungen' ? (
           <Exercises />
+        ) : tab === 'training' ? (
+          <Training />
         ) : (
           <>
             <h1 className="mt-2 mb-4 text-[34px] leading-[41px] font-bold tracking-tight">{current.label}</h1>

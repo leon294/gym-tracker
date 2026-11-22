@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import { formatSets } from './calc'
+import { useState } from 'react'
+import { formatDe } from './calc'
 import { db, newId, nowIso, useLive } from './db'
 import { MUSCLES, muscleLabel } from './muscles'
+import Sheet from './Sheet'
 import type { Exercise, MuscleWeight } from './types'
 
 export const musclesText = (ms: MuscleWeight[]) =>
-  ms.map((m) => (m.weight === 1 ? muscleLabel(m.muscleId) : `${muscleLabel(m.muscleId)} ${formatSets(m.weight)}`)).join(' · ')
+  ms.map((m) => (m.weight === 1 ? muscleLabel(m.muscleId) : `${muscleLabel(m.muscleId)} ${formatDe(m.weight)}`)).join(' · ')
 
 export default function Exercises() {
   const all = useLive(() => db.exercises.toArray())
@@ -90,12 +91,9 @@ export default function Exercises() {
 }
 
 function Editor({ exercise, all, onClose }: { exercise: Exercise | null; all: Exercise[]; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null)
   const [name, setName] = useState(exercise?.name ?? '')
   const [muscles, setMuscles] = useState<MuscleWeight[]>(exercise?.muscles ?? [{ muscleId: '', weight: 1 }])
   const [tried, setTried] = useState(false)
-
-  useEffect(() => ref.current?.showModal(), [])
 
   const trimmed = name.trim()
   const rows = muscles.filter((m) => m.muscleId)
@@ -110,7 +108,6 @@ function Editor({ exercise, all, onClose }: { exercise: Exercise | null; all: Ex
         ? 'Bitte mindestens eine Muskelgruppe wählen.'
         : null
 
-  const close = () => ref.current?.close() // fires onClose
   const setRow = (i: number, patch: Partial<MuscleWeight>) =>
     setMuscles(muscles.map((m, j) => (j === i ? { ...m, ...patch } : m)))
 
@@ -124,34 +121,16 @@ function Editor({ exercise, all, onClose }: { exercise: Exercise | null; all: Ex
       archived: exercise?.archived,
       updatedAt: nowIso(),
     })
-    close()
+    onClose()
   }
 
   async function toggleArchive() {
     await db.exercises.update(exercise!.id, { archived: !exercise!.archived, updatedAt: nowIso() })
-    close()
+    onClose()
   }
 
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      aria-labelledby="editor-title"
-      className="mx-auto mt-auto mb-0 max-h-[92dvh] w-full max-w-lg rounded-t-xl bg-bg text-label backdrop:bg-black/40"
-    >
-      <div className="sticky top-0 z-10 grid grid-cols-[1fr_auto_1fr] items-center bg-bg px-2 pt-2">
-        <button onClick={close} className="min-h-11 justify-self-start px-2 text-accent">
-          Abbrechen
-        </button>
-        <h2 id="editor-title" className="font-semibold">
-          {exercise ? 'Übung bearbeiten' : 'Neue Übung'}
-        </h2>
-        <button onClick={save} className="min-h-11 justify-self-end px-2 font-semibold text-accent">
-          Sichern
-        </button>
-      </div>
-
-      <div className="space-y-6 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+24px)]">
+    <Sheet title={exercise ? 'Übung bearbeiten' : 'Neue Übung'} onClose={onClose} action={{ label: 'Sichern', onClick: save }}>
         <label className="block">
           <span className="mb-1.5 block px-4 text-[13px] text-label-2 uppercase">Name</span>
           <input
@@ -198,7 +177,7 @@ function Editor({ exercise, all, onClose }: { exercise: Exercise | null; all: Ex
                       aria-pressed={m.weight === w}
                       className={`h-9 w-12 rounded-md text-[15px] font-medium ${m.weight === w ? 'bg-card shadow-sm' : 'text-label-2'}`}
                     >
-                      {formatSets(w)}
+                      {formatDe(w)}
                     </button>
                   ))}
                 </div>
@@ -229,7 +208,6 @@ function Editor({ exercise, all, onClose }: { exercise: Exercise | null; all: Ex
             {exercise.archived ? 'Wiederherstellen' : 'Archivieren'}
           </button>
         )}
-      </div>
-    </dialog>
+    </Sheet>
   )
 }

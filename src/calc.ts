@@ -1,5 +1,5 @@
 import type { MuscleId } from './muscles'
-import type { Workout } from './types'
+import type { SetEntry, Workout } from './types'
 
 export type MuscleSets = Record<MuscleId, number>
 
@@ -9,6 +9,7 @@ export function muscleSets(workouts: Workout[]): MuscleSets {
   for (const w of workouts)
     for (const ex of w.exercises) {
       const n = ex.sets.filter((s) => !s.warmup).length
+      if (!n) continue // no zero entries for exercises without working sets
       for (const m of ex.muscles) out[m.muscleId] = (out[m.muscleId] ?? 0) + n * m.weight
     }
   return out
@@ -52,6 +53,74 @@ export function weekSummary(all: Workout[], start: Date): WeekSummary {
   }
 }
 
-const setsFmt = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 })
-/** 1.5 → "1,5", 3 → "3" */
-export const formatSets = (n: number) => setsFmt.format(n)
+const deFmt = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 })
+/** German number, max one decimal: 1.5 → "1,5", 3 → "3" */
+export const formatDe = (n: number) => deFmt.format(n)
+
+export const workingSets = (sets: SetEntry[]) => sets.filter((s) => !s.warmup)
+
+export interface LastTime {
+  startedAt: string
+  sets: SetEntry[]
+}
+
+/** Most recent workout (other than excludeId) with sets for this exercise. */
+export function lastTime(workouts: Workout[], exerciseId: string, excludeId?: string): LastTime | undefined {
+  let best: LastTime | undefined
+  for (const w of workouts) {
+    if (w.id === excludeId) continue
+    const sets = w.exercises.filter((e) => e.exerciseId === exerciseId).flatMap((e) => e.sets)
+    if (sets.length && (!best || w.startedAt > best.startedAt)) best = { startedAt: w.startedAt, sets }
+  }
+  return best
+}
+
+/** Start values for a new set: last set of today, else first working set of last time. */
+export function prefill(current: SetEntry[], last?: LastTime): { weightKg: number; reps: number } {
+  const s = current.at(-1) ?? (last && (workingSets(last.sets)[0] ?? last.sets[0]))
+  return s ? { weightKg: s.weightKg, reps: s.reps } : { weightKg: 20, reps: 10 }
+}
+
+/** Epley estimate; a single rep is its own 1RM. */
+export const e1rm = (kg: number, reps: number) => (reps <= 1 ? kg : kg * (1 + reps / 30))
+
+export interface HistoryPoint {
+  startedAt: string
+  weight: number // heaviest working set
+  e1rm: number // best estimated 1RM
+  volume: number // sum of kg × reps
+}
+
+/** One point per workout with working sets of this exercise, oldest first. */
+export function exerciseHistory(workouts: Workout[], exerciseId: string): HistoryPoint[] {
+  return workouts
+    .flatMap((w) => {
+      const sets = workingSets(w.exercises.filter((e) => e.exerciseId === exerciseId).flatMap((e) => e.sets))
+      if (!sets.length) return []
+      return [
+        {
+          startedAt: w.startedAt,
+          weight: Math.max(...sets.map((s) => s.weightKg)),
+          e1rm: Math.round(Math.max(...sets.map((s) => e1rm(s.weightKg, s.reps))) * 10) / 10,
+          volume: sets.reduce((a, s) => a + s.weightKg * s.reps, 0),
+        },
+      ]
+    })
+    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+}
+
+const pad = (n: number) => String(n).padStart(2, '0')
+/** 75 → "1:15", 3725 → "1:02:05" */
+export function formatDuration(sec: number) {
+  const s = Math.floor(sec)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`
+}
+
+const dateFmt = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })
+const timeFmt = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' })
+/** "Mo., 23. Nov." */
+export const formatDate = (iso: string) => dateFmt.format(new Date(iso))
+/** "18:05" */
+export const formatTime = (iso: string) => timeFmt.format(new Date(iso))
