@@ -129,6 +129,12 @@ function Editor({ exercise, all, onClose }: { exercise: Exercise | null; all: Ex
     onClose()
   }
 
+  async function remove() {
+    if (!confirm(`„${exercise!.name}“ löschen? Bereits gespeicherte Trainings behalten die Übung.`)) return
+    await db.exercises.delete(exercise!.id) // workouts store their own copy of name and muscles
+    onClose()
+  }
+
   return (
     <Sheet title={exercise ? 'Übung bearbeiten' : 'Neue Übung'} onClose={onClose} action={{ label: 'Sichern', onClick: save }}>
         <label className="block">
@@ -204,9 +210,14 @@ function Editor({ exercise, all, onClose }: { exercise: Exercise | null; all: Ex
         )}
 
         {exercise && (
-          <button onClick={toggleArchive} className="min-h-11 w-full rounded-xl bg-card text-accent">
-            {exercise.archived ? 'Wiederherstellen' : 'Archivieren'}
-          </button>
+          <div className="overflow-hidden rounded-xl bg-card">
+            <button onClick={toggleArchive} className="min-h-11 w-full border-b-[0.5px] border-separator text-accent">
+              {exercise.archived ? 'Wiederherstellen' : 'Archivieren'}
+            </button>
+            <button onClick={remove} className="min-h-11 w-full text-red">
+              Übung löschen
+            </button>
+          </div>
         )}
     </Sheet>
   )

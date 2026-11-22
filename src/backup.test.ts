@@ -48,3 +48,16 @@ describe('newerOnly', () => {
     expect(newerOnly(existing, incoming).map((r) => r.id + r.updatedAt)).toEqual(['b2026-11-21', 'c2026-11-01'])
   })
 })
+
+describe('seed exercises', () => {
+  it('are valid, unique and use known muscles', async () => {
+    const { SEED_EXERCISES } = await import('./seedExercises')
+    const { MUSCLES } = await import('./muscles')
+    const ids = new Set(MUSCLES.map((m) => m.id as string))
+    expect(SEED_EXERCISES).toHaveLength(36)
+    expect(parseBackup(JSON.stringify(makeBackup(SEED_EXERCISES, []))).exercises).toEqual(SEED_EXERCISES)
+    expect(new Set(SEED_EXERCISES.map((e) => e.id)).size).toBe(36)
+    expect(new Set(SEED_EXERCISES.map((e) => e.name.toLowerCase())).size).toBe(36)
+    for (const e of SEED_EXERCISES) for (const m of e.muscles) expect(ids.has(m.muscleId), `${e.name}: ${m.muscleId}`).toBe(true)
+  })
+})

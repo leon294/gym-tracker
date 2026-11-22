@@ -135,8 +135,10 @@ function Week({
           <p className="text-[28px] font-semibold tabular-nums">{s.count}</p>
         </div>
         <div className="rounded-xl bg-card px-4 py-3">
-          <p className="text-[13px] text-label-2">Gesamtdauer</p>
-          <p className="text-[28px] font-semibold whitespace-nowrap tabular-nums max-[380px]:text-[22px] max-[380px]:leading-[42px]">{formatTotal(s.totalSec)}</p>
+          <p className="text-[13px] text-label-2">Ø Dauer pro Training</p>
+          <p className="text-[28px] font-semibold whitespace-nowrap tabular-nums max-[380px]:text-[22px] max-[380px]:leading-[42px]">
+            {s.count ? formatTotal(s.totalSec / s.count) : '–'}
+          </p>
         </div>
       </div>
 
