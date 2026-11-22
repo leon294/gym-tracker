@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.claude/settings.local.json
+# installed agent skills, not app code
+.agents/
+.claude/skills/
+skills-lock.json
