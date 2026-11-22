@@ -1,5 +1,5 @@
 import type { MuscleId } from './muscles'
-import type { SetEntry, Workout } from './types'
+import type { Exercise, Plan, SetEntry, Workout, WorkoutExercise } from './types'
 
 export type MuscleSets = Record<MuscleId, number>
 
@@ -138,4 +138,12 @@ export function formatTotal(sec: number) {
   const h = Math.floor(sec / 3600)
   const m = Math.floor((sec % 3600) / 60)
   return h ? `${h} h ${m} min` : `${m} min`
+}
+
+/** Exercises a workout starts with for a training day; skips ones deleted or archived since. */
+export function planExercises(plan: Plan, exercises: Exercise[]): WorkoutExercise[] {
+  return plan.exerciseIds.flatMap((id) => {
+    const e = exercises.find((x) => x.id === id && !x.archived)
+    return e ? [{ exerciseId: e.id, name: e.name, muscles: e.muscles, sets: [] }] : []
+  })
 }

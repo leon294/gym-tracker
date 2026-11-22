@@ -1,4 +1,4 @@
-import type { Exercise, Workout } from './types'
+import type { Exercise, Goal, Plan, Workout } from './types'
 
 export interface Backup {
   app: 'gym-tracker'
@@ -6,14 +6,19 @@ export interface Backup {
   exportedAt: string
   exercises: Exercise[]
   workouts: Workout[]
+  plans: Plan[] // optional in files from before training days existed
+  goals: Goal[]
 }
+type Data = Pick<Backup, 'exercises' | 'workouts' | 'plans' | 'goals'>
 
-export const makeBackup = (exercises: Exercise[], workouts: Workout[]): Backup => ({
+export const makeBackup = (exercises: Exercise[], workouts: Workout[], plans: Plan[] = [], goals: Goal[] = []): Backup => ({
   app: 'gym-tracker',
   version: 1,
   exportedAt: new Date().toISOString(),
   exercises,
   workouts,
+  plans,
+  goals,
 })
 
 // `any` on purpose: this validates untyped JSON from a file
@@ -24,7 +29,7 @@ const isMuscles = (v: any) => Array.isArray(v) && v.every((m) => isStr(m?.muscle
 const isSet = (s: any) => isStr(s?.id) && isNum(s.reps) && isNum(s.weightKg) && (s.warmup === undefined || typeof s.warmup === 'boolean')
 
 /** Parses and validates a backup file. Throws with a German message on bad input. */
-export function parseBackup(text: string): { exercises: Exercise[]; workouts: Workout[] } {
+export function parseBackup(text: string): Data {
   let data: any
   try {
     data = JSON.parse(text)
@@ -46,13 +51,24 @@ export function parseBackup(text: string): { exercises: Exercise[]; workouts: Wo
       isIso(w.updatedAt) &&
       (w.endedAt === undefined || isIso(w.endedAt)) &&
       (w.durationSec === undefined || isNum(w.durationSec)) &&
+      (w.planName === undefined || typeof w.planName === 'string') &&
       Array.isArray(w.exercises) &&
       w.exercises.every(
         (x: any) => isStr(x?.exerciseId) && typeof x.name === 'string' && isMuscles(x.muscles) && Array.isArray(x.sets) && x.sets.every(isSet),
       )
     if (!ok) throw new Error(`Training ${i + 1} in der Datei ist ungültig.`)
   })
-  return { exercises: data.exercises, workouts: data.workouts }
+  const plans = data.plans ?? []
+  const goals = data.goals ?? []
+  if (!Array.isArray(plans) || !Array.isArray(goals)) throw new Error('Trainingstage oder Ziele in der Datei sind ungültig.')
+  plans.forEach((p: any, i: number) => {
+    if (!(isStr(p?.id) && isStr(p.name) && Array.isArray(p.exerciseIds) && p.exerciseIds.every(isStr) && isIso(p.updatedAt)))
+      throw new Error(`Trainingstag ${i + 1} in der Datei ist ungültig.`)
+  })
+  goals.forEach((g: any, i: number) => {
+    if (!(isStr(g?.id) && isNum(g.sets) && isIso(g.updatedAt))) throw new Error(`Ziel ${i + 1} in der Datei ist ungültig.`)
+  })
+  return { exercises: data.exercises, workouts: data.workouts, plans, goals }
 }
 
 /** Records from `incoming` that are new or newer (by updatedAt) than what exists. Never deletes. */

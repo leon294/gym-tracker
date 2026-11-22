@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addWeeks, e1rm, exerciseHistory, formatDate, formatDe, formatDuration, formatTotal, formatWeek, lastTime, muscleSets, prefill, weekStart, weekSummary } from './calc'
+import { planExercises, addWeeks, e1rm, exerciseHistory, formatDate, formatDe, formatDuration, formatTotal, formatWeek, lastTime, muscleSets, prefill, weekStart, weekSummary } from './calc'
 import type { Workout, WorkoutExercise } from './types'
 
 const pullups = (sets: number, warmups = 0): WorkoutExercise => ({
@@ -151,5 +151,16 @@ describe('formatWeek / formatTotal', () => {
     expect(formatTotal(0)).toBe('0 min')
     expect(formatTotal(2700)).toBe('45 min')
     expect(formatTotal(8100)).toBe('2 h 15 min')
+  })
+})
+
+describe('planExercises', () => {
+  it('copies exercises in plan order, skipping deleted and archived ones', () => {
+    const ex = (id: string, archived?: boolean) => ({ id, name: id.toUpperCase(), muscles: [{ muscleId: 'brust', weight: 1 as const }], archived, updatedAt: '' })
+    const plan = { id: 'p', name: 'Push A', exerciseIds: ['b', 'gone', 'a', 'old'], updatedAt: '' }
+    expect(planExercises(plan, [ex('a'), ex('b'), ex('old', true)])).toEqual([
+      { exerciseId: 'b', name: 'B', muscles: [{ muscleId: 'brust', weight: 1 }], sets: [] },
+      { exerciseId: 'a', name: 'A', muscles: [{ muscleId: 'brust', weight: 1 }], sets: [] },
+    ])
   })
 })

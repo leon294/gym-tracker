@@ -2,14 +2,18 @@ import { useState } from 'react'
 import { formatDe } from './calc'
 import { db, newId, nowIso, useLive } from './db'
 import { MUSCLES, muscleLabel } from './muscles'
+import { PlanEditor, PlanList } from './Plans'
 import Sheet from './Sheet'
-import type { Exercise, MuscleWeight } from './types'
+import type { Exercise, MuscleWeight, Plan } from './types'
 
 export const musclesText = (ms: MuscleWeight[]) =>
   ms.map((m) => (m.weight === 1 ? muscleLabel(m.muscleId) : `${muscleLabel(m.muscleId)} ${formatDe(m.weight)}`)).join(' · ')
 
 export default function Exercises() {
   const all = useLive(() => db.exercises.toArray())
+  const plans = useLive(() => db.plans.toArray())
+  const [view, setView] = useState<'uebungen' | 'tage'>('uebungen')
+  const [planEdit, setPlanEdit] = useState<Plan | 'new' | null>(null)
   const [query, setQuery] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [editing, setEditing] = useState<Exercise | 'new' | null>(null)
@@ -25,8 +29,8 @@ export default function Exercises() {
       <header className="mt-2 mb-3 flex items-center justify-between">
         <h1 className="text-[34px] leading-[41px] font-bold tracking-tight">Übungen</h1>
         <button
-          onClick={() => setEditing('new')}
-          aria-label="Neue Übung"
+          onClick={() => (view === 'uebungen' ? setEditing('new') : setPlanEdit('new'))}
+          aria-label={view === 'uebungen' ? 'Neue Übung' : 'Neuer Trainingstag'}
           className="-mr-2 flex size-11 items-center justify-center rounded-full text-accent active:opacity-50"
         >
           <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
@@ -35,7 +39,25 @@ export default function Exercises() {
         </button>
       </header>
 
-      {all && all.length > 0 && (
+      <div role="group" aria-label="Ansicht" className="mb-4 flex rounded-lg bg-fill p-0.5">
+        {(['uebungen', 'tage'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            aria-pressed={view === v}
+            className={`h-9 flex-1 rounded-md text-[15px] font-medium ${view === v ? 'bg-seg shadow-sm' : 'text-label-2'}`}
+          >
+            {v === 'uebungen' ? 'Übungen' : 'Trainingstage'}
+          </button>
+        ))}
+      </div>
+
+      {view === 'tage' && plans && all && <PlanList plans={plans} exercises={all} onEdit={setPlanEdit} />}
+      {planEdit && plans && all && (
+        <PlanEditor plan={planEdit === 'new' ? null : planEdit} plans={plans} exercises={all} onClose={() => setPlanEdit(null)} />
+      )}
+
+      {view === 'uebungen' && all && all.length > 0 && (
         <input
           type="search"
           value={query}
@@ -46,7 +68,7 @@ export default function Exercises() {
         />
       )}
 
-      {all?.length === 0 ? (
+      {view !== 'uebungen' ? null : all?.length === 0 ? (
         <section className="rounded-xl bg-card px-4 py-6 text-center">
           <p className="text-label-2">Noch keine Übungen angelegt.</p>
           <button onClick={() => setEditing('new')} className="mt-2 min-h-11 font-semibold text-accent">
@@ -77,7 +99,7 @@ export default function Exercises() {
         </ul>
       )}
 
-      {archivedCount > 0 && (
+      {view === 'uebungen' && archivedCount > 0 && (
         <button onClick={() => setShowArchived(!showArchived)} className="mt-3 min-h-11 w-full text-accent">
           {showArchived ? 'Archivierte ausblenden' : `Archivierte anzeigen (${archivedCount})`}
         </button>

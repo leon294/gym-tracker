@@ -14,7 +14,25 @@ const wo: Workout = {
 
 describe('parseBackup', () => {
   it('round-trips an export', () => {
-    expect(parseBackup(JSON.stringify(makeBackup([ex], [wo])))).toEqual({ exercises: [ex], workouts: [wo] })
+    const plan = { id: 'p1', name: 'Push A', exerciseIds: ['e1'], updatedAt: wo.updatedAt }
+    const goal = { id: 'brust', sets: 12.5, updatedAt: wo.updatedAt }
+    expect(parseBackup(JSON.stringify(makeBackup([ex], [{ ...wo, planName: 'Push A' }], [plan], [goal])))).toEqual({
+      exercises: [ex],
+      workouts: [{ ...wo, planName: 'Push A' }],
+      plans: [plan],
+      goals: [goal],
+    })
+  })
+
+  it('accepts older files without plans and goals', () => {
+    const { plans, goals, ...old } = makeBackup([ex], [wo])
+    expect(plans.length + goals.length).toBe(0)
+    expect(parseBackup(JSON.stringify(old))).toEqual({ exercises: [ex], workouts: [wo], plans: [], goals: [] })
+  })
+
+  it('rejects broken plans and goals', () => {
+    expect(() => parseBackup(JSON.stringify(makeBackup([], [], [{ id: 'p', name: '', exerciseIds: [], updatedAt: wo.updatedAt }])))).toThrow('Trainingstag 1')
+    expect(() => parseBackup(JSON.stringify(makeBackup([], [], [], [{ id: 'brust', sets: -2, updatedAt: wo.updatedAt }])))).toThrow('Ziel 1')
   })
 
   it('rejects non-JSON, foreign JSON and newer versions', () => {

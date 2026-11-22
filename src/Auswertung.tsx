@@ -17,7 +17,7 @@ import { db, useLive } from './db'
 import { muscleLabel } from './muscles'
 import Sheet from './Sheet'
 import { caption, setText, title, WorkoutEditor } from './Training'
-import type { Workout } from './types'
+import type { Goal, Workout } from './types'
 
 const card = 'overflow-hidden rounded-xl bg-card'
 const row = 'flex justify-between gap-3 border-b-[0.5px] border-separator px-4 py-2.5 last:border-0'
@@ -27,11 +27,12 @@ const sortedSums = (ws: Workout[]) => Object.entries(muscleSets(ws)).sort((a, b)
 export default function Auswertung() {
   const workouts = useLive(() => db.workouts.toArray())
   const exercises = useLive(() => db.exercises.toArray())
+  const goals = useLive(() => db.goals.toArray())
   const [view, setView] = useState<'woche' | 'verlauf'>('woche')
   const [offset, setOffset] = useState(0)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
-  if (!workouts || !exercises) return null
+  if (!workouts || !exercises || !goals) return null
 
   const edited = workouts.find((w) => w.id === editId)
   if (edited) return <WorkoutEditor w={edited} workouts={workouts} exercises={exercises} onDone={() => setEditId(null)} />
@@ -56,7 +57,7 @@ export default function Auswertung() {
       </div>
 
       {view === 'woche' ? (
-        <Week workouts={done} offset={offset} setOffset={setOffset} onOpen={setDetailId} />
+        <Week workouts={done} goals={goals} offset={offset} setOffset={setOffset} onOpen={setDetailId} />
       ) : (
         <History workouts={done} onOpen={setDetailId} />
       )}
@@ -77,11 +78,13 @@ export default function Auswertung() {
 
 function Week({
   workouts,
+  goals,
   offset,
   setOffset,
   onOpen,
 }: {
   workouts: Workout[]
+  goals: Goal[]
   offset: number
   setOffset: (n: number) => void
   onOpen: (id: string) => void
@@ -89,8 +92,11 @@ function Week({
   const touch = useRef<{ x: number; y: number } | null>(null)
   const start = addWeeks(weekStart(new Date()), offset)
   const s = weekSummary(workouts, start)
-  const sums = sortedSums(s.workouts)
-  const max = sums[0]?.[1] ?? 0
+  const goalOf = new Map(goals.map((g) => [g.id, g.sets]))
+  const ist = (id: string) => s.muscles[id] ?? 0
+  // muscles trained this week or with a goal, most sets first
+  const rows = [...new Set([...Object.keys(s.muscles), ...goalOf.keys()])].sort((a, b) => ist(b) - ist(a))
+  const max = Math.max(0, ...Object.values(s.muscles))
   const go = (d: number) => setOffset(Math.min(0, offset + d)) // no future weeks
   const thisYear = start.getFullYear() === new Date().getFullYear()
 
@@ -143,20 +149,38 @@ function Week({
       </div>
 
       <section>
-        <h2 className={caption}>Gewichtete Sätze pro Muskelgruppe</h2>
-        {sums.length === 0 ? (
+        <h2 className={caption}>Gewichtete Sätze pro Muskelgruppe{goals.length > 0 && ' · Ist / Ziel'}</h2>
+        {rows.length === 0 ? (
           <p className="rounded-xl bg-card px-4 py-6 text-center text-label-2">Keine Arbeitssätze in dieser Woche.</p>
         ) : (
           <ul className={card}>
-            {sums.map(([id, n]) => (
-              <li key={id} className="flex items-center gap-3 border-b-[0.5px] border-separator px-4 py-2.5 last:border-0">
-                <span className="w-[38%] shrink-0 truncate">{muscleLabel(id)}</span>
-                <span className="flex-1" aria-hidden="true">
-                  <span className="block h-2 rounded-full bg-accent" style={{ width: `${Math.max(4, (n / max) * 100)}%` }} />
-                </span>
-                <span className="w-9 text-right font-semibold tabular-nums">{formatDe(n)}</span>
-              </li>
-            ))}
+            {rows.map((id) => {
+              const n = ist(id)
+              const g = goalOf.get(id)
+              return (
+                <li key={id} className="flex items-center gap-3 border-b-[0.5px] border-separator px-4 py-2.5 last:border-0">
+                  <span className="w-[42%] shrink-0 truncate">{muscleLabel(id)}</span>
+                  <span className="flex-1" aria-hidden="true">
+                    {/* with a goal: progress toward it on a visible track; without: relative to the week's max */}
+                    <span className={`block h-2 rounded-full ${g ? 'bg-fill' : ''}`}>
+                      <span
+                        className="block h-2 rounded-full bg-accent"
+                        style={{ width: g ? `${Math.min(100, (n / g) * 100)}%` : `${Math.max(4, (n / max) * 100)}%` }}
+                      />
+                    </span>
+                  </span>
+                  <span className="w-[5.5rem] shrink-0 text-right tabular-nums">
+                    <span className="font-semibold">{formatDe(n)}</span>
+                    {g !== undefined && <span className="text-label-2"> / {formatDe(g)}</span>}
+                    {g !== undefined && n >= g && (
+                      <span role="img" aria-label="Ziel erreicht">
+                        {' ✓'}
+                      </span>
+                    )}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>
@@ -184,6 +208,7 @@ function WorkoutList({ workouts, onOpen }: { workouts: Workout[]; onOpen: (id: s
           <button onClick={() => onOpen(w.id)} className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-left active:bg-separator">
             <span className="min-w-0 flex-1">
               <span className="block">
+                {w.planName && <span className="font-semibold">{w.planName} · </span>}
                 {formatDate(w.startedAt)}, {formatTime(w.startedAt)} Uhr
               </span>
               <span className="block truncate text-[15px] text-label-2">
@@ -213,6 +238,12 @@ function Detail({ w, onClose, onEdit }: { w: Workout; onClose: () => void; onEdi
   return (
     <Sheet title={formatDate(w.startedAt)} onClose={onClose} action={{ label: 'Bearbeiten', onClick: onEdit }}>
       <dl className={card}>
+        {w.planName && (
+          <div className={row}>
+            <dt>Trainingstag</dt>
+            <dd className="text-label-2">{w.planName}</dd>
+          </div>
+        )}
         <div className={row}>
           <dt>Start</dt>
           <dd className="text-label-2">{formatTime(w.startedAt)} Uhr</dd>

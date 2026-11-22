@@ -7,6 +7,7 @@ import {
   formatTime,
   lastTime,
   muscleSets,
+  planExercises,
   plural,
   prefill,
   workingSets,
@@ -15,8 +16,9 @@ import {
 import { db, newId, nowIso, useLive } from './db'
 import { musclesText } from './Exercises'
 import { muscleLabel } from './muscles'
+import { planSummary, sortPlans } from './Plans'
 import Sheet from './Sheet'
-import type { Exercise, SetEntry, Workout, WorkoutExercise } from './types'
+import type { Exercise, Plan, SetEntry, Workout, WorkoutExercise } from './types'
 import WeightWheel from './WeightWheel'
 
 // Recharts is large; load it only when a history sheet opens (still precached for offline)
@@ -32,32 +34,68 @@ const saveWorkout = (w: Workout) => db.workouts.put({ ...w, updatedAt: nowIso() 
 export default function Training() {
   const workouts = useLive(() => db.workouts.toArray())
   const exercises = useLive(() => db.exercises.toArray())
-  if (!workouts || !exercises) return null
+  const plans = useLive(() => db.plans.toArray())
+  if (!workouts || !exercises || !plans) return null
 
   const running = workouts.filter((w) => !w.endedAt).sort((a, b) => a.startedAt.localeCompare(b.startedAt)).at(-1)
   return running ? (
     <WorkoutEditor w={running} workouts={workouts} exercises={exercises} />
   ) : (
-    <Idle last={workouts.reduce<Workout | undefined>((a, w) => (!a || w.startedAt > a.startedAt ? w : a), undefined)} />
+    <Idle
+      last={workouts.reduce<Workout | undefined>((a, w) => (!a || w.startedAt > a.startedAt ? w : a), undefined)}
+      plans={plans}
+      exercises={exercises}
+    />
   )
 }
 
-function Idle({ last }: { last?: Workout }) {
-  const start = () => db.workouts.add({ id: newId(), startedAt: nowIso(), exercises: [], updatedAt: nowIso() })
+function Idle({ last, plans, exercises }: { last?: Workout; plans: Plan[]; exercises: Exercise[] }) {
+  const [choosing, setChoosing] = useState(false)
+  const start = (plan?: Plan) =>
+    db.workouts.add({
+      id: newId(),
+      startedAt: nowIso(),
+      planName: plan?.name,
+      exercises: plan ? planExercises(plan, exercises) : [],
+      updatedAt: nowIso(),
+    })
+  const row = 'flex min-h-11 w-full flex-col items-start px-4 py-2.5 text-left active:bg-separator'
   return (
     <>
       <h1 className={`mt-2 mb-4 ${title}`}>Training</h1>
       <section className="rounded-xl bg-card px-4 py-6 text-center text-label-2">
         {last
-          ? `Letztes Training: ${formatDate(last.startedAt)}, ${formatTime(last.startedAt)} Uhr · ${formatDuration(last.durationSec ?? 0)}`
+          ? `Letztes Training: ${last.planName ? `${last.planName}, ` : ''}${formatDate(last.startedAt)}, ${formatTime(last.startedAt)} Uhr · ${formatDuration(last.durationSec ?? 0)}`
           : 'Noch kein Training gespeichert.'}
       </section>
       {/* thumb zone, above the tab bar */}
       <div className="fixed inset-x-4 bottom-[calc(49px+env(safe-area-inset-bottom)+16px)] mx-auto max-w-lg">
-        <button onClick={start} className={primary}>
+        <button onClick={() => (plans.length ? setChoosing(true) : start())} className={primary}>
           Training starten
         </button>
       </div>
+
+      {choosing && (
+        <Sheet title="Trainingstag wählen" onClose={() => setChoosing(false)}>
+          <ul className="overflow-hidden rounded-xl bg-card">
+            {sortPlans(plans).map((p) => (
+              <li key={p.id} className="border-b-[0.5px] border-separator">
+                <button onClick={() => start(p)} className={row}>
+                  <span className="font-semibold">{p.name}</span>
+                  <span className="line-clamp-2 text-[15px] text-label-2">{planSummary(p, exercises)}</span>
+                </button>
+              </li>
+            ))}
+            <li>
+              <button onClick={() => start()} className={row}>
+                <span className="font-semibold">Freies Training</span>
+                <span className="text-[15px] text-label-2">Ohne Trainingstag, Übungen selbst hinzufügen</span>
+              </button>
+            </li>
+          </ul>
+          <p className="px-4 text-[13px] text-label-2">Trainingstage legst du unter Übungen → Trainingstage an.</p>
+        </Sheet>
+      )}
     </>
   )
 }
@@ -138,7 +176,7 @@ export function WorkoutEditor({
             <button onClick={() => setModal({ kind: 'time' })} className="-my-2 min-h-11 text-[15px] text-accent">
               {formatTime(w.startedAt)} Uhr · {formatDuration(w.durationSec ?? 0)} · Zeit ändern
             </button>
-            <h1 className={title}>{formatDate(w.startedAt)}</h1>
+            <h1 className={title}>{w.planName ?? formatDate(w.startedAt)}</h1>
           </div>
           <button onClick={onDone} className="min-h-11 px-1 font-semibold text-accent">
             Fertig
@@ -147,7 +185,9 @@ export function WorkoutEditor({
       ) : (
         <header className="mt-2 mb-4 flex items-end justify-between">
           <div>
-            <p className="text-[15px] text-label-2">Training seit {formatTime(w.startedAt)} Uhr</p>
+            <p className="text-[15px] text-label-2">
+              {w.planName ? `${w.planName} · seit` : 'Training seit'} {formatTime(w.startedAt)} Uhr
+            </p>
             <p className={`${title} tabular-nums`} role="timer" aria-label="Trainingsdauer">
               {formatDuration(elapsed)}
             </p>

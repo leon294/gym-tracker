@@ -1,11 +1,13 @@
 import Dexie, { liveQuery, type EntityTable, type Transaction } from 'dexie'
 import { useEffect, useState, type DependencyList } from 'react'
 import { SEED_EXERCISES } from './seedExercises'
-import type { Exercise, Workout } from './types'
+import type { Exercise, Goal, Plan, Workout } from './types'
 
 export const db = new Dexie('gym-tracker') as Dexie & {
   exercises: EntityTable<Exercise, 'id'>
   workouts: EntityTable<Workout, 'id'>
+  plans: EntityTable<Plan, 'id'>
+  goals: EntityTable<Goal, 'id'>
 }
 
 db.version(1).stores({
@@ -21,6 +23,7 @@ const seed = async (t: Transaction) => {
 }
 db.version(2).stores({}).upgrade(seed)
 db.on('populate', seed)
+db.version(3).stores({ plans: 'id, name', goals: 'id' })
 
 // Ask the browser not to evict our data under storage pressure
 navigator.storage?.persist?.()
